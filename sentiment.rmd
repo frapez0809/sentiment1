@@ -1,0 +1,123 @@
+---
+title: "Sentiment Analysis"
+output: html_document
+---
+```{r}
+library(here)
+library(dplyr)
+library(tidytext)
+library(tidyr)
+library(knitr)
+library(ggplot2)
+```
+
+
+Sentiment analysis allows us to use standard lexicons to explore the 
+sentiments expressed in texts. 
+
+
+```{r}
+load(here("data/quakersaints_trimmed.rda"))
+load(here("data/quakersaints_long.rda"))
+```
+
+Will will use the long data (one word per line). In this data you should also
+have a row number variable and a variable that defines which
+chapter/story/section the word is in.  We will be using those variables
+to help us to explore sentiments in the text.
+
+```{r}
+bing <- get_sentiments("bing")
+bing |> inner_join( quakersaints_long, by = "word", multiple = "all" ) -> qs_bing
+```
+
+```{r}
+table(qs_bing$sentiment)
+table(qs_bing$sentiment) |> prop.table() |>round(2)
+```
+
+Overall the lannguage is more negative than positive.
+
+```{r}
+table(qs_bing$sentiment, qs_bing$younger) |> prop.table(2) |> round(2)
+```
+
+If we compare the stories deemed suitable for younger children to the
+others, the children's are more negative.
+
+```{r}
+table(qs_bing$sentiment, qs_bing$section_type) |> prop.table(2) |> round(2)
+
+```
+
+Interestingly the stories are more negative than the other materials.
+
+This does tend to support the idea that the epigraphs are more flowery.
+
+Based on this, I'm going to redo the earlier comparisons of young and old with
+just stories.
+
+```{r}
+qs_bing |> filter(section_type == "Story") -> qs_stories_bing
+table(qs_stories_bing$sentiment, qs_stories_bing$younger) |> 
+  prop.table(2) |> round(2)
+```
+
+The results are essentially the same. 
+
+How much variation is there from story to story? 
+
+```{r}
+table( qs_stories_bing$title, qs_stories_bing$sentiment) |> 
+  prop.table(1) |> round(2)
+```
+
+This is a lot; is there a better way to display this?
+
+```{r}
+ qs_stories_bing |> group_by(title) |> 
+  summarize(Positive = round(sum(sentiment == "positive")/n(), 2)) |>
+  arrange(Positive) |> kable()
+```
+
+
+Visualizing this would be better.   This is one possible way.  
+For yours make sure to add labels.  In this case I might also want to
+add a line highlighting .5 or to change the tick marks to help visualize
+that.  Do what makes sense for your data. 
+
+```{r fig.height=5}
+ qs_stories_bing |> group_by(title) |> 
+  summarize(Positive = round(sum(sentiment == "positive")/n(), 2)) |>
+  arrange(Positive) |> 
+  ggplot(aes(x=reorder(title, Positive), y =Positive)) +
+  geom_point(size = 4) +
+   geom_segment(aes(x=title, xend=title, y=0, yend=Positive)) +
+  coord_flip()
+
+
+```
+
+
+Another thing to look at will be how sentiments change during the stories.
+
+How do we have to fix this to make it meaningful?
+
+
+```{r}
+ qs_stories_bing |> 
+  
+ggplot( aes(row_number, sentiment, fill =title)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~title, ncol = 2, scales = "free_x")
+```
+
+
+
+
+
+
+On your own do the same kind of analysis but using the afinn lexicon.  
+You will have to think about what needs to change when you have numbers
+rather than just positive/negative.
+
